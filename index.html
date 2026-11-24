@@ -111,6 +111,12 @@ h2.sn::after{content:'';flex:1;height:1px;background:var(--line)}
  .rr{grid-template-columns:1fr}.dg{grid-template-columns:1fr}.stat{margin-left:0;width:100%}
  select{min-width:0;width:100%}
 }
+.crow[data-sw]{cursor:pointer}.crow[data-sw]:hover{background:#f3f6fb}
+.allh{font-weight:600;font-size:14px;margin:14px 0 6px}.allh .note{font-weight:400}
+.alls{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:#3d4657;margin-bottom:6px}.alls i,.allv i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.allt{border:1px solid var(--line);border-radius:10px;max-height:460px;overflow:auto}
+.allr{display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:center;padding:4px 10px;border-top:1px solid #eef1f5;cursor:pointer;font-size:13px}.allr>.mea{grid-column:2}.allr:first-child{border-top:0}.allr:hover{background:#f6f9fe}.allr.on{background:#fff8e1}
+@media (max-width:760px){.allr{grid-template-columns:48px 1fr}.allr>.mea{grid-column:1/3}}
 </style></head><body><div class="wrap">
 <header>
 <h1>滑行结论总览 · 按结论看弯</h1>
@@ -203,22 +209,32 @@ main.addEventListener('mousemove',e=>{const i=e.target.closest('[data-tip]');if(
 main.addEventListener('mouseleave',()=>tip.hidden=true);
 const mask=document.getElementById('mask'),dlg=document.getElementById('dlg');
 function closeDlg(){mask.hidden=true;dlg.innerHTML=''}
-mask.onclick=e=>{if(e.target===mask||e.target.closest('.x'))closeDlg();const b=e.target.closest('[data-go]');if(b){const c=JSON.parse(mask.dataset.ctx);openTurn(b.dataset.go,c.sl,c.v,c.list)}};
+mask.onclick=e=>{if(e.target===mask||e.target.closest('.x'))closeDlg();const b=e.target.closest('[data-go]');if(b){const c=JSON.parse(mask.dataset.ctx);openTurn(b.dataset.go,c.sl,c.v,c.list);return}
+ const rl=()=>{const c=JSON.parse(mask.dataset.ctx),t=TURNS.find(x=>x.id===c.id);return [c,TURNS.filter(x=>x.r===t.r).sort((a,b)=>a.k-b.k).map(x=>x.id)]};
+ const g2=e.target.closest('[data-go2]');if(g2){const [c,L]=rl(),t=TURNS.find(x=>x.id===g2.dataset.go2);const l=c.list.includes(t.id)?c.list:L;openTurn(t.id,c.sl,vals(t,c.sl)[0],l);return}
+ const sw=e.target.closest('[data-sw]');if(sw){const [c,L]=rl(),t=TURNS.find(x=>x.id===c.id),sl=sw.dataset.sw;openTurn(t.id,sl,RUNSLOT[sl]?'':vals(t,sl)[0],L)}};
 addEventListener('keydown',e=>{if(mask.hidden)return;if(e.key==='Escape')closeDlg();const c=JSON.parse(mask.dataset.ctx||'{}');if(!c.list)return;const j=c.list.indexOf(c.id);
  if(e.key==='ArrowRight'&&j<c.list.length-1)openTurn(c.list[j+1],c.sl,c.v,c.list);if(e.key==='ArrowLeft'&&j>0)openTurn(c.list[j-1],c.sl,c.v,c.list)});
 function crow(sl,S,cur,t){const v=RUNSLOT[sl]?null:S[sl];let c;
  if(RUNSLOT[sl]){const rv=(RUN[t.r]||{})[sl==='两侧'?'两侧'+(DIMS[ST.dim].i+1):sl];c='<span><span class="rn">整趟</span> '+(rv&&!'?!'.includes(rv[0])?'<b>'+esc(rv[0])+'</b>'+(rv[2]?'：'+esc(rv[2]):''):'<span class="note">'+(rv&&rv[0]==='!'?'暂不能识别':'暂无法描述')+'</span>')+'</span>'}else if(!v)c='<span class="note">暂无法描述</span>';else if(v[0]==='!')c='<span class="note">暂不能识别</span>';else if(v[0]==='?')c='<span class="note">暂无法描述（缺少：'+esc(v[1])+'）</span>';
  else c='<span><b>'+esc(v[0])+'</b>'+(v[2]?'：'+esc(v[2]):'')+(v[1]?'<span class="mea">（依据：'+esc(v[1])+'）</span>':'')+'</span>';
- return '<div class="crow'+(cur?' cur':'')+'"><span class="sl">'+esc(sl)+'</span>'+c+'</div>'}
-function openTurn(id,sl,v,list){const t=TURNS.find(x=>x.id===id);if(!t)return;const h=hdr(t);const d=DIMS[ST.dim];
- mask.dataset.ctx=JSON.stringify({id,sl,v,list});const j=list.indexOf(id);const RU=rule(d,sl);
+ return '<div class="crow'+(cur?' cur':'')+'" data-sw="'+esc(sl)+'" title="点一下，下面列出这一趟所有弯的「'+esc(sl)+'」"><span class="sl">'+esc(sl)+'</span>'+c+'</div>'}
+/* 11/24 大熊：点开弯后，再看这一趟所有弯在当前结论上的取值 */
+function runAll(t,sl,d){const RT=TURNS.filter(x=>x.r===t.r).sort((a,b)=>a.k-b.k);
+ if(RUNSLOT[sl]){const v=(RUN[t.r]||{})[sl==='两侧'?'两侧'+(d.i+1):sl];return [RT,'<p class="note">「'+esc(sl)+'」是整趟结论，这一趟是：'+(!v||'?!'.includes(v[0])?'暂无法描述':'<b style="color:var(--ink)">'+esc(v[0])+'</b>'+(v[2]?'：'+esc(v[2]):''))+'</p>']}
+ const tbl=(d.vals[sl]||[]).map(r=>r[0]),vs=[...new Set(RT.flatMap(x=>vals(x,sl)))],col={};[...tbl.filter(n=>vs.includes(n)),...vs.filter(n=>!tbl.includes(n)&&!'?!'.includes(n))].forEach((n,i)=>col[n]=PAL[i%8]);col['?']=col['!']='var(--na)';
+ const cnt={};RT.forEach(x=>vals(x,sl).forEach(n=>cnt[n]=(cnt[n]||0)+1));const nm=n=>n==='?'?'暂无法描述':n==='!'?'暂不能识别':n;
+ return [RT,'<div class="alls">'+Object.entries(cnt).map(([n,c])=>'<span><i style="background:'+col[n]+'"></i>'+esc(nm(n))+' '+c+'</span>').join('')+'</div><div class="allt">'+RT.map(x=>{const h=hdr(x),v=x.S[sl],ns=vals(x,sl);
+  return '<div class="allr'+(x.id===t.id?' on':'')+'" data-go2="'+x.id+'"><span class="tc '+(h[0]==='前刃'?'toe':h[0]==='后刃'?'heel':'')+'">T'+x.k+'</span><span class="allv">'+ns.map(n=>'<i style="background:'+col[n]+'"></i>').join('')+'<b>'+esc(!v?'暂无法描述':nm(v[0]))+'</b></span><span class="mea">'+esc(v&&!'?!'.includes(v[0])?(v[2]||''):(v&&v[1])||'')+'</span></div>'}).join('')+'</div>']}
+function openTurn(id,sl,v,list){const t=TURNS.find(x=>x.id===id);if(!t)return;if(!RUNSLOT[sl]){const tv=vals(t,sl);if(!tv.includes(v))v=tv[0]}const h=hdr(t);const d=DIMS[ST.dim];
+ mask.dataset.ctx=JSON.stringify({id,sl,v,list});const j=list.indexOf(id);const RU=rule(d,sl);const [RT,allH]=runAll(t,sl,d);
  const vid=h[3]?'<video src="'+ORIG+t.r+'/t'+String(t.k).padStart(2,'0')+'.mp4" muted playsinline loop autoplay controls></video>':'<div class="note">这一弯没有视频片段</div>';
  let rows='';d.sents.forEach(([sn,slots])=>{rows+='<div class="dsn">'+esc(sn)+'</div>'+slots.map(s=>crow(s,t.S,s===sl,t)).join('')});
  const vv=v==='?'?'暂无法描述':v;
  dlg.innerHTML='<button class="x">×</button><h4>'+esc(RL[t.r])+' · T'+t.k+(h[0]?' · '+h[0]:'')+(h[1]?' · '+h[1]:'')+(h[2]?' · '+h[2]:'')+'</h4>'
- +'<div class="hit">'+esc(sl)+' = <b>'+esc(vv)+'</b>（这一组第 '+(j+1)+' / '+list.length+' 个弯）'+((RU.v||{})[v]?'<span class="if">判定：'+esc(RU.v[v])+'</span>':'')+'</div>'
- +'<div class="dg"><div>'+vid+'<div class="nav">'+(j>0?'<button data-go="'+list[j-1]+'">← 上一个</button>':'')+(j<list.length-1?'<button data-go="'+list[j+1]+'">下一个 →</button>':'')+'<a href="'+ORIG+'#'+t.r+'-t'+t.k+'" target="_blank" rel="noopener">在逐弯页打开 ↗</a></div>'+(h[4]?'<div class="note" style="margin-top:8px">甩板尾：'+esc(h[4])+'</div>':'')+'</div><div>'+rows+'</div></div>';
- mask.hidden=false}
+ +'<div class="hit">'+esc(sl)+' = <b>'+esc(vv)+'</b>（'+(list.length===TURNS.filter(x=>x.r===t.r).length&&list.every(i=>i.split('-')[0]===t.r)?'这一趟':'这一组')+'第 '+(j+1)+' / '+list.length+' 个弯）'+((RU.v||{})[v]?'<span class="if">判定：'+esc(RU.v[v])+'</span>':'')+'</div>'
+ +'<div class="dg"><div>'+vid+'<div class="nav">'+(j>0?'<button data-go="'+list[j-1]+'">← 上一个</button>':'')+(j<list.length-1?'<button data-go="'+list[j+1]+'">下一个 →</button>':'')+'<a href="'+ORIG+'#'+t.r+'-t'+t.k+'" target="_blank" rel="noopener">在逐弯页打开 ↗</a></div>'+(h[4]?'<div class="note" style="margin-top:8px">甩板尾：'+esc(h[4])+'</div>':'')+'<div class="allh">这一趟所有弯的「'+esc(sl)+'」<span class="note">（'+RT.length+' 个有视频的弯，点一行切到那个弯）</span></div>'+allH+'</div><div><div class="note" style="margin-bottom:4px">点任一行，左边列表换成这一项</div>'+rows+'</div></div>';
+ mask.hidden=false;dlg.scrollTop=0}
 (async()=>{
  const ks=D.runs.map(([k])=>k);let done=0;const ld=document.getElementById('load');
  const js=await Promise.all(ks.map(k=>fetch(ORIG+k+'/c4.json?t='+Math.floor(Date.now()/600000),{cache:'no-cache'}).then(x=>x.json()).catch(()=>null).finally(()=>{done++;ld.textContent='正在读取各趟结论… '+done+' / '+ks.length})));
